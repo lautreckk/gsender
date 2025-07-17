@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -20,17 +19,17 @@ const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Mock data for demo
+  // Mock data for demo with correct types
   const mockConnections = [
-    { id: 1, name: 'WhatsApp Principal', phone: '+55 11 99999-9999', status: 'connected', lastActivity: '2 min atrás' },
-    { id: 2, name: 'Suporte', phone: '+55 11 88888-8888', status: 'disconnected', lastActivity: '1 hora atrás' },
-    { id: 3, name: 'Vendas', phone: '+55 11 77777-7777', status: 'connecting', lastActivity: 'Conectando...' }
+    { id: 1, name: 'WhatsApp Principal', phone: '+55 11 99999-9999', status: 'connected' as const, lastActivity: '2 min atrás' },
+    { id: 2, name: 'Suporte', phone: '+55 11 88888-8888', status: 'disconnected' as const, lastActivity: '1 hora atrás' },
+    { id: 3, name: 'Vendas', phone: '+55 11 77777-7777', status: 'connecting' as const, lastActivity: 'Conectando...' }
   ];
 
   const mockCampaigns = [
-    { id: 1, name: 'Black Friday 2024', type: 'individual', status: 'active', contacts: 1250, sent: 450, scheduled: '14:00' },
-    { id: 2, name: 'Promoção Verão', type: 'group', status: 'paused', contacts: 800, sent: 800, scheduled: 'Pausada' },
-    { id: 3, name: 'Newsletter Semanal', type: 'individual', status: 'completed', contacts: 2100, sent: 2100, scheduled: 'Concluída' }
+    { id: 1, name: 'Black Friday 2024', type: 'individual' as const, status: 'active' as const, contacts: 1250, sent: 450, scheduled: '14:00' },
+    { id: 2, name: 'Promoção Verão', type: 'group' as const, status: 'paused' as const, contacts: 800, sent: 800, scheduled: 'Pausada' },
+    { id: 3, name: 'Newsletter Semanal', type: 'individual' as const, status: 'completed' as const, contacts: 2100, sent: 2100, scheduled: 'Concluída' }
   ];
 
   const handleLogin = (e: React.FormEvent) => {
