@@ -9,6 +9,8 @@ import { DashboardSidebar } from '@/components/DashboardSidebar';
 import { ConnectionCard } from '@/components/ConnectionCard';
 import { CampaignCard } from '@/components/CampaignCard';
 import { MetricCard } from '@/components/MetricCard';
+import { HistoryView } from '@/components/HistoryView';
+import { MembersView } from '@/components/MembersView';
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
@@ -191,6 +193,14 @@ const Index = () => {
     </div>
   );
 
+  const renderHistory = () => (
+    <HistoryView isAdmin={true} />
+  );
+
+  const renderMembers = () => (
+    <MembersView />
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
@@ -205,13 +215,8 @@ const Index = () => {
           {activeView === 'dashboard' && renderDashboard()}
           {activeView === 'connections' && renderConnections()}
           {activeView === 'campaigns' && renderCampaigns()}
-          {activeView === 'history' && (
-            <div className="text-center py-12">
-              <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Histórico em Desenvolvimento</h3>
-              <p className="text-muted-foreground">Esta seção será implementada em breve</p>
-            </div>
-          )}
+          {activeView === 'history' && renderHistory()}
+          {activeView === 'members' && renderMembers()}
           {activeView === 'settings' && (
             <div className="text-center py-12">
               <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
