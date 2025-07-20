@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,64 +10,66 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { UserPlus, Edit, Trash2, Shield, MessageCircle, Users, Eye } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 
 interface Member {
-  id: number;
+  id: string;
   name: string;
   email: string;
-  connectionsCount: number;
+  connections_count: number;
   status: 'active' | 'suspended';
-  canSendIndividual: boolean;
-  canSendGroup: boolean;
-  createdAt: string;
+  can_send_individual: boolean;
+  can_send_group: boolean;
+  created_at: string;
 }
 
-const mockMembers: Member[] = [
-  {
-    id: 1,
-    name: 'João Silva',
-    email: 'joao@empresa.com',
-    connectionsCount: 3,
-    status: 'active',
-    canSendIndividual: true,
-    canSendGroup: false,
-    createdAt: '2024-01-10'
-  },
-  {
-    id: 2,
-    name: 'Maria Santos',
-    email: 'maria@empresa.com',
-    connectionsCount: 2,
-    status: 'active',
-    canSendIndividual: true,
-    canSendGroup: true,
-    createdAt: '2024-01-12'
-  },
-  {
-    id: 3,
-    name: 'Pedro Costa',
-    email: 'pedro@empresa.com',
-    connectionsCount: 1,
-    status: 'suspended',
-    canSendIndividual: false,
-    canSendGroup: false,
-    createdAt: '2024-01-15'
-  }
-];
-
 export function MembersView() {
-  const [members, setMembers] = useState(mockMembers);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [newMember, setNewMember] = useState({
     name: '',
     email: '',
-    canSendIndividual: true,
-    canSendGroup: false
+    can_send_individual: true,
+    can_send_group: false
   });
   const { toast } = useToast();
 
-  const handleAddMember = () => {
+  // Função para buscar membros do Supabase
+  const fetchMembers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar membros:', error);
+        toast({
+          title: 'Erro ao carregar membros',
+          description: 'Não foi possível carregar os membros. Tente novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setMembers(data || []);
+      console.log('📊 Membros carregados do Supabase:', data?.length || 0, data);
+    } catch (error) {
+      console.error('Erro ao buscar membros:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar membros quando component montar
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  const handleAddMember = async () => {
     if (!newMember.name || !newMember.email) {
       toast({
         title: "Erro",
@@ -77,67 +79,169 @@ export function MembersView() {
       return;
     }
 
-    const member: Member = {
-      id: Date.now(),
-      name: newMember.name,
-      email: newMember.email,
-      connectionsCount: 0,
-      status: 'active',
-      canSendIndividual: newMember.canSendIndividual,
-      canSendGroup: newMember.canSendGroup,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
+    try {
+      const { data, error } = await supabase
+        .from('members')
+        .insert({
+          name: newMember.name,
+          email: newMember.email,
+          status: 'active',
+          can_send_individual: newMember.can_send_individual,
+          can_send_group: newMember.can_send_group,
+          connections_count: 0
+        })
+        .select()
+        .single();
 
-    setMembers([...members, member]);
-    setNewMember({ name: '', email: '', canSendIndividual: true, canSendGroup: false });
-    setIsAddDialogOpen(false);
-    
-    toast({
-      title: "Membro adicionado",
-      description: `${member.name} foi adicionado com sucesso. Um convite foi enviado para ${member.email}.`
-    });
+      if (error) {
+        console.error('Erro ao adicionar membro:', error);
+        toast({
+          title: "Erro",
+          description: error.message.includes('duplicate') ? 
+            "Este e-mail já está em uso" : 
+            "Erro ao adicionar membro. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await fetchMembers(); // Reload the list
+      setNewMember({ name: '', email: '', can_send_individual: true, can_send_group: false });
+      setIsAddDialogOpen(false);
+      
+      toast({
+        title: "Membro adicionado",
+        description: `${data.name} foi adicionado com sucesso. Um convite foi enviado para ${data.email}.`
+      });
+    } catch (error) {
+      console.error('Erro ao adicionar membro:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao adicionar membro. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEditMember = (member: Member) => {
     setEditingMember(member);
   };
 
-  const handleUpdateMember = () => {
+  const handleUpdateMember = async () => {
     if (!editingMember) return;
 
-    setMembers(members.map(m => 
-      m.id === editingMember.id ? editingMember : m
-    ));
-    setEditingMember(null);
-    
-    toast({
-      title: "Membro atualizado",
-      description: "As informações do membro foram atualizadas com sucesso."
-    });
-  };
+    try {
+      const { error } = await supabase
+        .from('members')
+        .update({
+          name: editingMember.name,
+          email: editingMember.email,
+          can_send_individual: editingMember.can_send_individual,
+          can_send_group: editingMember.can_send_group,
+          status: editingMember.status
+        })
+        .eq('id', editingMember.id);
 
-  const handleToggleStatus = (id: number) => {
-    setMembers(members.map(member => 
-      member.id === id 
-        ? { ...member, status: member.status === 'active' ? 'suspended' : 'active' as const }
-        : member
-    ));
-    
-    const member = members.find(m => m.id === id);
-    toast({
-      title: "Status alterado",
-      description: `${member?.name} foi ${member?.status === 'active' ? 'suspenso' : 'ativado'}.`
-    });
-  };
+      if (error) {
+        console.error('Erro ao atualizar membro:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao atualizar membro. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-  const handleDeleteMember = (id: number) => {
-    const member = members.find(m => m.id === id);
-    if (confirm(`Tem certeza que deseja excluir ${member?.name}? Esta ação não pode ser desfeita.`)) {
-      setMembers(members.filter(m => m.id !== id));
+      await fetchMembers(); // Reload the list
+      setEditingMember(null);
+      
       toast({
-        title: "Membro excluído",
-        description: `${member?.name} foi excluído do sistema.`
+        title: "Membro atualizado",
+        description: "As informações do membro foram atualizadas com sucesso."
       });
+    } catch (error) {
+      console.error('Erro ao atualizar membro:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar membro. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleToggleStatus = async (id: string) => {
+    const member = members.find(m => m.id === id);
+    if (!member) return;
+
+    const newStatus = member.status === 'active' ? 'suspended' : 'active';
+
+    try {
+      const { error } = await supabase
+        .from('members')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Erro ao alterar status:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao alterar status. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await fetchMembers(); // Reload the list
+      
+      toast({
+        title: "Status alterado",
+        description: `${member.name} foi ${newStatus === 'active' ? 'ativado' : 'suspenso'}.`
+      });
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao alterar status. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteMember = async (id: string) => {
+    const member = members.find(m => m.id === id);
+    if (!member) return;
+
+    if (confirm(`Tem certeza que deseja excluir ${member.name}? Esta ação não pode ser desfeita.`)) {
+      try {
+        const { error } = await supabase
+          .from('members')
+          .delete()
+          .eq('id', id);
+
+        if (error) {
+          console.error('Erro ao excluir membro:', error);
+          toast({
+            title: "Erro",
+            description: "Erro ao excluir membro. Tente novamente.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        await fetchMembers(); // Reload the list
+        
+        toast({
+          title: "Membro excluído",
+          description: `${member.name} foi excluído do sistema.`
+        });
+      } catch (error) {
+        console.error('Erro ao excluir membro:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir membro. Tente novamente.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -166,7 +270,7 @@ export function MembersView() {
               Adicionar Membro
             </Button>
           </DialogTrigger>
-          <DialogContent>
+              <DialogContent>
             <DialogHeader>
               <DialogTitle>Adicionar Novo Membro</DialogTitle>
               <DialogDescription>
@@ -202,8 +306,8 @@ export function MembersView() {
                   </Label>
                   <Switch
                     id="individual"
-                    checked={newMember.canSendIndividual}
-                    onCheckedChange={(checked) => setNewMember({...newMember, canSendIndividual: checked})}
+                    checked={newMember.can_send_individual}
+                    onCheckedChange={(checked) => setNewMember({...newMember, can_send_individual: checked})}
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -213,8 +317,8 @@ export function MembersView() {
                   </Label>
                   <Switch
                     id="group"
-                    checked={newMember.canSendGroup}
-                    onCheckedChange={(checked) => setNewMember({...newMember, canSendGroup: checked})}
+                    checked={newMember.can_send_group}
+                    onCheckedChange={(checked) => setNewMember({...newMember, can_send_group: checked})}
                   />
                 </div>
               </div>
@@ -261,7 +365,7 @@ export function MembersView() {
               <MessageCircle className="h-5 w-5 text-purple-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Conexões</p>
-                <p className="text-2xl font-bold">{members.reduce((acc, m) => acc + m.connectionsCount, 0)}</p>
+                <p className="text-2xl font-bold">{members.reduce((acc, m) => acc + m.connections_count, 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -277,90 +381,104 @@ export function MembersView() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Membro</TableHead>
-                <TableHead>Conexões</TableHead>
-                <TableHead>Permissões</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{member.name}</div>
-                      <div className="text-sm text-muted-foreground">{member.email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {member.connectionsCount} conexões
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {member.canSendIndividual && (
-                        <Badge variant="secondary" className="text-xs">
-                          Individual
-                        </Badge>
-                      )}
-                      {member.canSendGroup && (
-                        <Badge variant="secondary" className="text-xs">
-                          Grupo
-                        </Badge>
-                      )}
-                      {!member.canSendIndividual && !member.canSendGroup && (
-                        <Badge variant="outline" className="text-xs">
-                          Sem permissões
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={member.status === 'active' ? 'default' : 'destructive'}
-                      className="cursor-pointer"
-                      onClick={() => handleToggleStatus(member.id)}
-                    >
-                      {member.status === 'active' ? 'Ativo' : 'Suspenso'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{member.createdAt}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleImpersonate(member)}
-                        title="Impersonar usuário"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditMember(member)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteMember(member.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {loading ? (
+            <div className="flex justify-center items-center p-8">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : members.length === 0 ? (
+            <div className="text-center p-8">
+              <div className="text-muted-foreground space-y-2">
+                <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-lg">Nenhum membro encontrado</p>
+                <p className="text-sm">Comece adicionando o primeiro membro da equipe</p>
+              </div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Membro</TableHead>
+                  <TableHead>Conexões</TableHead>
+                  <TableHead>Permissões</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Criado em</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{member.name}</div>
+                        <div className="text-sm text-muted-foreground">{member.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {member.connections_count} conexões
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {member.can_send_individual && (
+                          <Badge variant="secondary" className="text-xs">
+                            Individual
+                          </Badge>
+                        )}
+                        {member.can_send_group && (
+                          <Badge variant="secondary" className="text-xs">
+                            Grupo
+                          </Badge>
+                        )}
+                        {!member.can_send_individual && !member.can_send_group && (
+                          <Badge variant="outline" className="text-xs">
+                            Sem permissões
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={member.status === 'active' ? 'default' : 'destructive'}
+                        className="cursor-pointer"
+                        onClick={() => handleToggleStatus(member.id)}
+                      >
+                        {member.status === 'active' ? 'Ativo' : 'Suspenso'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{new Date(member.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleImpersonate(member)}
+                          title="Impersonar usuário"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditMember(member)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteMember(member.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -400,8 +518,8 @@ export function MembersView() {
                     Pode disparar individual
                   </Label>
                   <Switch
-                    checked={editingMember.canSendIndividual}
-                    onCheckedChange={(checked) => setEditingMember({...editingMember, canSendIndividual: checked})}
+                    checked={editingMember.can_send_individual}
+                    onCheckedChange={(checked) => setEditingMember({...editingMember, can_send_individual: checked})}
                   />
                 </div>
                 <div className="flex items-center justify-between">
@@ -410,8 +528,8 @@ export function MembersView() {
                     Pode disparar em grupo
                   </Label>
                   <Switch
-                    checked={editingMember.canSendGroup}
-                    onCheckedChange={(checked) => setEditingMember({...editingMember, canSendGroup: checked})}
+                    checked={editingMember.can_send_group}
+                    onCheckedChange={(checked) => setEditingMember({...editingMember, can_send_group: checked})}
                   />
                 </div>
               </div>

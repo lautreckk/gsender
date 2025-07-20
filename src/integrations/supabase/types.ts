@@ -14,7 +14,285 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      campaigns: {
+        Row: {
+          id: string
+          name: string
+          type: 'individual' | 'group'
+          status: 'draft' | 'scheduled' | 'active' | 'paused' | 'completed' | 'cancelled'
+          created_by: string | null
+          created_at: string
+          updated_at: string
+          scheduled_days: string[] | null
+          start_time: string | null
+          end_time: string | null
+          message_interval: number | null
+          start_date: string | null
+          total_contacts: number | null
+          sent_messages: number | null
+          failed_messages: number | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          type: 'individual' | 'group'
+          status?: 'draft' | 'scheduled' | 'active' | 'paused' | 'completed' | 'cancelled'
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          scheduled_days?: string[] | null
+          start_time?: string | null
+          end_time?: string | null
+          message_interval?: number | null
+          start_date?: string | null
+          total_contacts?: number | null
+          sent_messages?: number | null
+          failed_messages?: number | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          type?: 'individual' | 'group'
+          status?: 'draft' | 'scheduled' | 'active' | 'paused' | 'completed' | 'cancelled'
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+          scheduled_days?: string[] | null
+          start_time?: string | null
+          end_time?: string | null
+          message_interval?: number | null
+          start_date?: string | null
+          total_contacts?: number | null
+          sent_messages?: number | null
+          failed_messages?: number | null
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          id: string
+          key: string
+          value: Json
+          category: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          value: Json
+          category?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          value?: Json
+          category?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          id: string
+          campaign_id: string
+          nome: string
+          numero: string
+          tag: string
+          created_at: string
+          status: 'pending' | 'sent' | 'failed' | 'delivered'
+          sent_at: string | null
+          error_message: string | null
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          nome: string
+          numero: string
+          tag: string
+          created_at?: string
+          status?: 'pending' | 'sent' | 'failed' | 'delivered'
+          sent_at?: string | null
+          error_message?: string | null
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          nome?: string
+          numero?: string
+          tag?: string
+          created_at?: string
+          status?: 'pending' | 'sent' | 'failed' | 'delivered'
+          sent_at?: string | null
+          error_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      messages: {
+        Row: {
+          id: string
+          campaign_id: string
+          type: 'text' | 'image' | 'video' | 'audio' | 'document'
+          content: string
+          order_index: number
+          created_at: string
+          updated_at: string
+          file_name: string | null
+          file_size: number | null
+          mime_type: string | null
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          type: 'text' | 'image' | 'video' | 'audio' | 'document'
+          content: string
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          mime_type?: string | null
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          type?: 'text' | 'image' | 'video' | 'audio' | 'document'
+          content?: string
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          mime_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      groups: {
+        Row: {
+          id: string
+          whatsapp_group_id: string
+          subject: string
+          subject_owner: string | null
+          subject_time: number | null
+          picture_url: string | null
+          size: number | null
+          creation: number
+          owner: string | null
+          description: string | null
+          desc_id: string | null
+          restrict: boolean | null
+          announce: boolean | null
+          is_community: boolean | null
+          is_community_announce: boolean | null
+          instance_name: string | null
+          last_sync_at: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          whatsapp_group_id: string
+          subject: string
+          subject_owner?: string | null
+          subject_time?: number | null
+          picture_url?: string | null
+          size?: number | null
+          creation: number
+          owner?: string | null
+          description?: string | null
+          desc_id?: string | null
+          restrict?: boolean | null
+          announce?: boolean | null
+          is_community?: boolean | null
+          is_community_announce?: boolean | null
+          instance_name?: string | null
+          last_sync_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          whatsapp_group_id?: string
+          subject?: string
+          subject_owner?: string | null
+          subject_time?: number | null
+          picture_url?: string | null
+          size?: number | null
+          creation?: number
+          owner?: string | null
+          description?: string | null
+          desc_id?: string | null
+          restrict?: boolean | null
+          announce?: boolean | null
+          is_community?: boolean | null
+          is_community_announce?: boolean | null
+          instance_name?: string | null
+          last_sync_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      group_members: {
+        Row: {
+          id: string
+          group_id: string | null
+          whatsapp_id: string
+          phone_number: string
+          admin_role: string | null
+          joined_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          group_id?: string | null
+          whatsapp_id: string
+          phone_number: string
+          admin_role?: string | null
+          joined_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          group_id?: string | null
+          whatsapp_id?: string
+          phone_number?: string
+          admin_role?: string | null
+          joined_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

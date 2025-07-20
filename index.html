@@ -18,6 +18,28 @@
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2325D366'><path d='M20.52 3.48A11.86 11.86 0 0 0 12 0C5.37 0 0 5.37 0 12a11.93 11.93 0 0 0 1.68 6.19L0 24l5.99-1.57A11.92 11.92 0 0 0 12 24c6.63 0 12-5.37 12-12a11.86 11.86 0 0 0-3.48-8.52zM12 21.97a9.95 9.95 0 0 1-5.08-1.4l-.36-.22-3.76.98 1.01-3.69-.24-.38A9.95 9.95 0 0 1 2.03 12c0-5.51 4.49-10 10-10s10 4.49 10 10-4.49 9.97-10 9.97z'/></svg>" type="image/svg+xml">
+    
+    <!-- Script para aplicar tema imediatamente, evitando flash -->
+    <script>
+      (function() {
+        try {
+          const savedTheme = localStorage.getItem('theme') || 'system';
+          const root = document.documentElement;
+          
+          root.classList.remove('light', 'dark');
+          
+          if (savedTheme === 'system') {
+            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            root.classList.add(systemTheme);
+          } else {
+            root.classList.add(savedTheme);
+          }
+        } catch (e) {
+          // Fallback to light theme if anything fails
+          document.documentElement.classList.add('light');
+        }
+      })();
+    </script>
   </head>
 
   <body>

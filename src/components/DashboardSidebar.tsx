@@ -8,9 +8,13 @@ import {
   History, 
   Settings, 
   LogOut,
-  Users
+  Users,
+  Building,
+  UsersRound
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useWhiteLabelSettings } from '@/contexts/SettingsContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface DashboardSidebarProps {
   tenant: any;
@@ -20,12 +24,16 @@ interface DashboardSidebarProps {
 }
 
 export function DashboardSidebar({ tenant, activeView, onViewChange, onLogout }: DashboardSidebarProps) {
+  const whiteLabelSettings = useWhiteLabelSettings();
+  
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'connections', label: 'Conexões', icon: MessageCircle },
     { id: 'campaigns', label: 'Campanhas', icon: Send },
+    { id: 'groups', label: 'Grupos', icon: UsersRound },
     { id: 'history', label: 'Histórico', icon: History },
     { id: 'members', label: 'Membros', icon: Users },
+    { id: 'clients', label: 'Clientes', icon: Building },
     { id: 'settings', label: 'Configurações', icon: Settings },
   ];
 
@@ -35,15 +43,15 @@ export function DashboardSidebar({ tenant, activeView, onViewChange, onLogout }:
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={tenant?.logo} />
+            <AvatarImage src={whiteLabelSettings.logo || tenant?.logo} />
             <AvatarFallback className="bg-green-500 text-white">
-              {tenant?.name?.charAt(0) || 'T'}
+              {(whiteLabelSettings.companyName || tenant?.name || 'T').charAt(0)}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <h2 className="font-semibold truncate">{tenant?.name || 'Tenant'}</h2>
+            <h2 className="font-semibold truncate">{whiteLabelSettings.companyName || tenant?.name || 'Disparamator'}</h2>
             <p className="text-sm text-muted-foreground truncate">
-              {tenant?.domain || 'app.exemplo.com'}
+              {whiteLabelSettings.domain || tenant?.domain || 'app.disparamator.com'}
             </p>
           </div>
         </div>
@@ -71,7 +79,11 @@ export function DashboardSidebar({ tenant, activeView, onViewChange, onLogout }:
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-2">
+        {/* Theme Toggle */}
+        <ThemeToggle variant="ghost" showLabel={true} />
+        
+        {/* Logout Button */}
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-50"

@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, X, Download, Search, Filter } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from "@/hooks/use-toast";
 
 interface HistoryItem {
-  id: number;
+  id: string;
   campaignName: string;
   type: 'individual' | 'group';
   totalMessages: number;
@@ -23,47 +25,17 @@ interface HistoryItem {
   memberName?: string;
 }
 
-const mockHistory: HistoryItem[] = [
-  {
-    id: 1,
-    campaignName: 'Black Friday 2024',
-    type: 'individual',
-    totalMessages: 1250,
-    sent: 1200,
-    pending: 30,
-    failed: 20,
-    progress: 96,
-    startDate: '2024-01-15 14:00',
-    status: 'sent',
-    memberName: 'João Silva'
-  },
-  {
-    id: 2,
-    campaignName: 'Promoção Verão',
-    type: 'group',
-    totalMessages: 800,
-    sent: 400,
-    pending: 350,
-    failed: 50,
-    progress: 50,
-    startDate: '2024-01-16 09:00',
-    status: 'in_progress',
-    memberName: 'Maria Santos'
-  },
-  {
-    id: 3,
-    campaignName: 'Newsletter Semanal',
-    type: 'individual',
-    totalMessages: 2100,
-    sent: 0,
-    pending: 2100,
-    failed: 0,
-    progress: 0,
-    startDate: '2024-01-20 10:00',
-    status: 'scheduled',
-    memberName: 'Pedro Costa'
+// Função para mapear status do Supabase para o tipo do histórico
+const mapCampaignStatusToHistory = (status: string): 'sent' | 'in_progress' | 'scheduled' | 'cancelled' | 'failed' => {
+  switch (status) {
+    case 'completed': return 'sent';
+    case 'active': return 'in_progress';
+    case 'draft': return 'scheduled';
+    case 'paused': return 'cancelled';
+    case 'cancelled': return 'cancelled';
+    default: return 'scheduled';
   }
-];
+};
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -95,8 +67,71 @@ export function HistoryView({ isAdmin = false }: HistoryViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const filteredHistory = mockHistory.filter(item => {
+  // Função para buscar campanhas do Supabase
+  const fetchCampaigns = async () => {
+    try {
+      setLoading(true);
+      const { data: campaigns, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar campanhas:', error);
+        toast({
+          title: 'Erro ao carregar histórico',
+          description: 'Não foi possível carregar o histórico de campanhas.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Transformar dados do Supabase para o formato do histórico
+      const historyData: HistoryItem[] = campaigns?.map(campaign => {
+        const totalMessages = campaign.total_contacts || 0;
+        const sent = campaign.sent_messages || 0;
+        const failed = campaign.failed_messages || 0;
+        const pending = Math.max(0, totalMessages - sent - failed);
+        const progress = totalMessages > 0 ? Math.round((sent / totalMessages) * 100) : 0;
+
+        return {
+          id: campaign.id,
+          campaignName: campaign.name,
+          type: campaign.type as 'individual' | 'group',
+          totalMessages,
+          sent,
+          pending,
+          failed,
+          progress,
+          startDate: campaign.created_at ? new Date(campaign.created_at).toLocaleString('pt-BR') : '',
+          status: mapCampaignStatusToHistory(campaign.status),
+          memberName: 'Sistema' // TODO: Integrar com tabela de membros
+        };
+      }) || [];
+
+      setHistory(historyData);
+    } catch (error) {
+      console.error('Erro ao buscar campanhas:', error);
+      toast({
+        title: 'Erro ao carregar histórico',
+        description: 'Ocorreu um erro inesperado.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar campanhas quando component montar
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
+
+  const filteredHistory = history.filter(item => {
     const matchesSearch = item.campaignName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (item.memberName && item.memberName.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
@@ -105,14 +140,41 @@ export function HistoryView({ isAdmin = false }: HistoryViewProps) {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  const handleCancelCampaign = (id: number) => {
-    console.log(`Cancelando campanha ${id}`);
-    // Implementar lógica de cancelamento
+  const handleCancelCampaign = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ status: 'cancelled' })
+        .eq('id', id);
+
+      if (error) {
+        console.error('Erro ao cancelar campanha:', error);
+        toast({
+          title: 'Erro ao cancelar campanha',
+          description: 'Não foi possível cancelar a campanha.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      await fetchCampaigns(); // Reload the list
+      toast({
+        title: 'Campanha cancelada',
+        description: 'A campanha foi cancelada com sucesso.',
+      });
+    } catch (error) {
+      console.error('Erro ao cancelar campanha:', error);
+      toast({
+        title: 'Erro ao cancelar campanha',
+        description: 'Ocorreu um erro inesperado.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleViewDetails = (id: number) => {
+  const handleViewDetails = (id: string) => {
     console.log(`Visualizando detalhes da campanha ${id}`);
-    // Implementar navegação para detalhes
+    // TODO: Implementar navegação para detalhes
   };
 
   return (
@@ -190,21 +252,39 @@ export function HistoryView({ isAdmin = false }: HistoryViewProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Campanha</TableHead>
-                <TableHead>Tipo</TableHead>
-                {isAdmin && <TableHead>Membro</TableHead>}
-                <TableHead>Mensagens</TableHead>
-                <TableHead>Progresso</TableHead>
-                <TableHead>Data Início</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredHistory.map((item) => (
+          {loading ? (
+            <div className="flex justify-center items-center p-8">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : filteredHistory.length === 0 ? (
+            <div className="text-center p-8">
+              <div className="text-muted-foreground space-y-2">
+                <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-lg">Nenhuma campanha encontrada</p>
+                <p className="text-sm">
+                  {history.length === 0 
+                    ? 'Nenhuma campanha foi criada ainda' 
+                    : 'Ajuste os filtros para encontrar campanhas'
+                  }
+                </p>
+              </div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Campanha</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  {isAdmin && <TableHead>Membro</TableHead>}
+                  <TableHead>Mensagens</TableHead>
+                  <TableHead>Progresso</TableHead>
+                  <TableHead>Data Início</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredHistory.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">
                     {item.campaignName}
@@ -269,9 +349,10 @@ export function HistoryView({ isAdmin = false }: HistoryViewProps) {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

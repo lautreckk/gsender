@@ -103,3 +103,55 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Garantir contraste adequado para botões */
+  .btn-primary {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border: 1px solid hsl(var(--primary));
+  }
+  
+  .btn-primary:hover {
+    background-color: hsl(var(--primary) / 0.9);
+  }
+  
+  .btn-secondary {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border: 1px solid hsl(var(--secondary));
+  }
+  
+  .btn-secondary:hover {
+    background-color: hsl(var(--secondary) / 0.8);
+  }
+  
+  /* Garantir que botões sempre tenham texto visível */
+  button {
+    min-height: 2.5rem;
+  }
+  
+  button:not([class*="bg-"]):not([class*="text-"]) {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+  
+  button:not([class*="bg-"]):not([class*="text-"]):hover {
+    background-color: hsl(var(--primary) / 0.9);
+  }
+  
+  /* Fallback para botões sem classe específica */
+  .button, [role="button"] {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border: 1px solid hsl(var(--border));
+    padding: 0.5rem 1rem;
+    border-radius: calc(var(--radius) - 2px);
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  
+  .button:hover, [role="button"]:hover {
+    background-color: hsl(var(--primary) / 0.9);
+  }
+}
